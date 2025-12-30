@@ -131,7 +131,8 @@ const MyProjectsPage = () => {
   };
 
   const handleAddToCart = async (product) => {
-    const productData = product.product || product;
+    // Favorites are product objects directly
+    const productData = product;
     setAddingToCart(prev => new Set([...prev, productData.id]));
     try {
       await api.get('/sanctum/csrf-cookie');
@@ -157,15 +158,17 @@ const MyProjectsPage = () => {
   };
 
   const handleViewProduct = (product) => {
-    const categorySlug = product.product?.category?.slug || 'products';
-    const productSlug = product.product?.slug;
+    // Favorites are product objects directly
+    const categorySlug = product.category?.slug || 'products';
+    const productSlug = product.slug;
     if (productSlug) {
       navigate(`/${categorySlug}/${productSlug}`);
     }
   };
 
   const filteredFavorites = favorites.filter(fav =>
-    fav.product?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    // Favorites are product objects directly
+    fav.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredProjects = projects.filter(proj =>
@@ -299,15 +302,15 @@ const MyProjectsPage = () => {
                         <div className={viewMode === 'list' ? 'w-48 flex-shrink-0' : ''}>
                           <div className="relative aspect-square bg-gray-100">
                             <img
-                              src={favorite.product?.featured_image_url || favorite.product?.featured_image || 'https://via.placeholder.com/300?text=No+Image'}
-                              alt={favorite.product?.name || 'Product'}
+                              src={favorite.featured_image_url || favorite.featured_image || 'https://via.placeholder.com/300?text=No+Image'}
+                              alt={favorite.name || 'Product'}
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.target.src = 'https://via.placeholder.com/300?text=No+Image';
                               }}
                             />
                             <button
-                              onClick={() => handleRemoveFavorite(favorite.product_id)}
+                              onClick={() => handleRemoveFavorite(favorite.id)}
                               className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors"
                               title="Remove from wishlist"
                             >
@@ -317,19 +320,19 @@ const MyProjectsPage = () => {
                         </div>
                         <div className="p-4 flex-1">
                           <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">
-                            {favorite.product?.name || 'Unnamed Product'}
+                            {favorite.name || 'Unnamed Product'}
                           </h3>
                           <p className="text-sm text-gray-500 mb-3">
-                            {favorite.product?.category?.name || 'Uncategorized'}
+                            {favorite.category?.name || 'Uncategorized'}
                           </p>
                           <div className="flex items-center justify-between mb-4">
                             <div>
                               <span className="text-lg font-bold text-gray-900">
-                                ₹{parseFloat(favorite.product?.price || 0).toFixed(2)}
+                                ₹{parseFloat(favorite.price || 0).toFixed(2)}
                               </span>
-                              {favorite.product?.sale_price && (
+                              {favorite.sale_price && (
                                 <span className="ml-2 text-sm text-red-600 font-semibold">
-                                  Save ₹{(parseFloat(favorite.product?.price) - parseFloat(favorite.product?.sale_price)).toFixed(2)}
+                                  Save ₹{(parseFloat(favorite.price) - parseFloat(favorite.sale_price)).toFixed(2)}
                                 </span>
                               )}
                             </div>
@@ -344,15 +347,15 @@ const MyProjectsPage = () => {
                             </button>
                             <button
                               onClick={() => handleAddToCart(favorite)}
-                              disabled={addingToCart.has(favorite.product?.id)}
+                              disabled={addingToCart.has(favorite.id)}
                               className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                                addingToCart.has(favorite.product?.id)
+                                addingToCart.has(favorite.id)
                                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                               }`}
                             >
                               <FaShoppingCart size={14} />
-                              {addingToCart.has(favorite.product?.id) ? 'Adding...' : 'Add to Cart'}
+                              {addingToCart.has(favorite.id) ? 'Adding...' : 'Add to Cart'}
                             </button>
                           </div>
                         </div>

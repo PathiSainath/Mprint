@@ -124,8 +124,8 @@ const FavoritesPage = () => {
     if (favorites.length === 0) return;
 
     const inStockProducts = favorites.filter(fav => {
-      const product = fav.product || fav;
-      return product.stock_quantity > 0;
+      // Favorites are product objects directly
+      return fav.stock_quantity > 0;
     });
 
     if (inStockProducts.length === 0) {
@@ -142,8 +142,8 @@ const FavoritesPage = () => {
     let successCount = 0;
     let failCount = 0;
 
-    for (const fav of inStockProducts) {
-      const product = fav.product || fav;
+    for (const product of inStockProducts) {
+      // Favorites are product objects directly
       try {
         await api.get("/sanctum/csrf-cookie");
         await api.post("/api/cart", {
@@ -193,8 +193,8 @@ const FavoritesPage = () => {
 
   // Get unique categories from favorites
   const categories = [...new Set(favorites.map(fav => {
-    const product = fav.product || fav;
-    return product.category?.name;
+    // Favorites are product objects directly
+    return fav.category?.name;
   }).filter(Boolean))];
 
   // Apply filters and sorting
@@ -204,23 +204,21 @@ const FavoritesPage = () => {
     // Apply category filter
     if (filterCategory !== "all") {
       filtered = filtered.filter(fav => {
-        const product = fav.product || fav;
-        return product.category?.name === filterCategory;
+        // Favorites are product objects directly
+        return fav.category?.name === filterCategory;
       });
     }
 
     // Apply sorting
     filtered.sort((a, b) => {
-      const productA = a.product || a;
-      const productB = b.product || b;
-
+      // Favorites are product objects directly
       switch (sortBy) {
         case "price-low":
-          return (productA.sale_price || productA.price) - (productB.sale_price || productB.price);
+          return (a.sale_price || a.price) - (b.sale_price || b.price);
         case "price-high":
-          return (productB.sale_price || productB.price) - (productA.sale_price || productA.price);
+          return (b.sale_price || b.price) - (a.sale_price || a.price);
         case "name":
-          return productA.name.localeCompare(productB.name);
+          return a.name.localeCompare(b.name);
         case "newest":
         default:
           return b.id - a.id;
@@ -443,7 +441,8 @@ const FavoritesPage = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {displayFavorites.map((favorite) => {
-              const product = favorite.product || favorite;
+              // The API returns product objects directly, not favorites with nested products
+              const product = favorite;
               const isAddingToCart = addingToCart.has(product.id);
 
               return (

@@ -29,11 +29,24 @@ export const FavoritesProvider = ({ children }) => {
         console.log('[FavoritesContext] Favorites data:', favs);
         console.log('[FavoritesContext] Favorites count:', favs.length);
 
+        // Debug: Check the structure of the first favorite
+        if (favs.length > 0) {
+          console.log('[FavoritesContext] First favorite structure:', favs[0]);
+          console.log('[FavoritesContext] First favorite product:', favs[0].product);
+          console.log('[FavoritesContext] First favorite product_id:', favs[0].product_id);
+        }
+
         setFavorites(favs);
         setFavoritesCount(favs.length);
 
         // Create a Set of favorite product IDs for quick lookup
-        const ids = new Set(favs.map(fav => fav.product?.id || fav.product_id).filter(Boolean));
+        // Try multiple possible structures
+        const ids = new Set(favs.map(fav => {
+          const productId = fav.product?.id || fav.product_id || fav.id;
+          console.log('[FavoritesContext] Extracting ID from favorite:', { fav, productId });
+          return productId;
+        }).filter(Boolean));
+
         console.log('[FavoritesContext] Favorite IDs:', Array.from(ids));
         setFavoriteIds(ids);
       }

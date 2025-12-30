@@ -238,10 +238,21 @@ const BookmarksPage = () => {
         <div className="max-w-7xl mx-auto mb-6">
           <button
             onClick={() => setIsFilterOpen(true)}
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-md"
+            className="relative w-full group overflow-hidden"
           >
-            <FaFilter />
-            <span className="font-medium">Filters & Sort</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 rounded-xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
+            <div className="relative flex items-center justify-center gap-3 px-6 py-4 text-white">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <FaFilter size={16} />
+              </div>
+              <span className="font-bold text-lg">Filters & Sort</span>
+              {isFiltered && (
+                <span className="ml-auto bg-white/30 text-white text-xs px-3 py-1 rounded-full font-medium backdrop-blur-sm">
+                  Active
+                </span>
+              )}
+            </div>
           </button>
         </div>
       )}

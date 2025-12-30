@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { FaFilter, FaTimes, FaSort } from 'react-icons/fa';
-import { IoChevronDown, IoChevronUp } from 'react-icons/io5';
+import { FaFilter, FaTimes, FaSort, FaDollarSign, FaCheckCircle } from 'react-icons/fa';
+import { IoChevronDown, IoChevronUp, IoSparkles } from 'react-icons/io5';
 import PriceRangeFilter from './PriceRangeFilter';
 
 const FilterSidebar = ({
@@ -20,106 +20,178 @@ const FilterSidebar = ({
   const [isSortExpanded, setIsSortExpanded] = useState(true);
 
   const sortOptions = [
-    { value: 'created_at_desc', label: 'Newest First', sortBy: 'created_at', sortOrder: 'desc' },
-    { value: 'price_asc', label: 'Price: Low to High', sortBy: 'price', sortOrder: 'asc' },
-    { value: 'price_desc', label: 'Price: High to Low', sortBy: 'price', sortOrder: 'desc' },
-    { value: 'name_asc', label: 'Name: A to Z', sortBy: 'name', sortOrder: 'asc' },
-    { value: 'name_desc', label: 'Name: Z to A', sortBy: 'name', sortOrder: 'desc' },
+    {
+      value: 'created_at_desc',
+      label: 'Newest First',
+      icon: '🆕',
+      sortBy: 'created_at',
+      sortOrder: 'desc'
+    },
+    {
+      value: 'price_asc',
+      label: 'Price: Low to High',
+      icon: '💰',
+      sortBy: 'price',
+      sortOrder: 'asc'
+    },
+    {
+      value: 'price_desc',
+      label: 'Price: High to Low',
+      icon: '💎',
+      sortBy: 'price',
+      sortOrder: 'desc'
+    },
+    {
+      value: 'name_asc',
+      label: 'Name: A to Z',
+      icon: '🔤',
+      sortBy: 'name',
+      sortOrder: 'asc'
+    },
+    {
+      value: 'name_desc',
+      label: 'Name: Z to A',
+      icon: '🔡',
+      sortBy: 'name',
+      sortOrder: 'desc'
+    },
   ];
 
   const currentSortValue = `${sortBy}_${sortOrder}`;
   const isFiltered = selectedPriceRange[0] !== priceRange.min || selectedPriceRange[1] !== priceRange.max;
 
   const sidebarContent = (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <FaFilter className="text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
-        </div>
-        {isFiltered && (
-          <button
-            onClick={onClearFilters}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-          >
-            <FaTimes size={12} />
-            Clear All
-          </button>
-        )}
-      </div>
+    <div className="space-y-5">
+      {/* Header with gradient */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-6 text-white shadow-lg">
+        <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white opacity-10"></div>
+        <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-16 w-16 rounded-full bg-white opacity-10"></div>
 
-      {/* Results Count */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
-        <p className="text-sm text-gray-700">
-          Showing <span className="font-bold text-blue-600">{totalProducts}</span> products
-        </p>
+        <div className="relative">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <FaFilter className="text-white" size={18} />
+              </div>
+              <h3 className="text-xl font-bold">Filters</h3>
+            </div>
+            {isFiltered && (
+              <button
+                onClick={onClearFilters}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all transform hover:scale-105"
+              >
+                <FaTimes size={10} />
+                Clear All
+              </button>
+            )}
+          </div>
+
+          {/* Results Count */}
+          <div className="flex items-center gap-2 mt-4">
+            <IoSparkles className="text-yellow-300" size={20} />
+            <p className="text-sm font-medium">
+              <span className="text-2xl font-bold">{totalProducts}</span>
+              <span className="ml-1 opacity-90">products found</span>
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Sort Options */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-white border-2 border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
         <button
           onClick={() => setIsSortExpanded(!isSortExpanded)}
-          className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition"
+          className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white hover:from-gray-100 hover:to-gray-50 transition-all"
         >
-          <div className="flex items-center gap-2">
-            <FaSort className="text-gray-600" />
-            <span className="font-medium text-gray-900">Sort By</span>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <FaSort className="text-blue-600" size={16} />
+            </div>
+            <span className="font-semibold text-gray-900">Sort By</span>
           </div>
-          {isSortExpanded ? (
-            <IoChevronUp className="text-gray-600" />
-          ) : (
-            <IoChevronDown className="text-gray-600" />
-          )}
+          <div className="flex items-center gap-2">
+            {!isSortExpanded && (
+              <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
+                {sortOptions.find(o => o.value === currentSortValue)?.label.split(':')[0]}
+              </span>
+            )}
+            {isSortExpanded ? (
+              <IoChevronUp className="text-gray-400" size={20} />
+            ) : (
+              <IoChevronDown className="text-gray-400" size={20} />
+            )}
+          </div>
         </button>
 
-        {isSortExpanded && (
-          <div className="p-4 space-y-2">
+        <div className={`transition-all duration-300 ease-in-out ${isSortExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+          <div className="p-3 space-y-1 bg-gray-50/50">
             {sortOptions.map((option) => (
               <label
                 key={option.value}
-                className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer transition group"
+                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all transform hover:scale-[1.02] ${
+                  currentSortValue === option.value
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                    : 'bg-white hover:bg-blue-50 border border-gray-100'
+                }`}
               >
-                <input
-                  type="radio"
-                  name="sort"
-                  value={option.value}
-                  checked={currentSortValue === option.value}
-                  onChange={() => onSortChange(option.sortBy, option.sortOrder)}
-                  className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                />
-                <span className={`text-sm ${currentSortValue === option.value ? 'text-blue-600 font-medium' : 'text-gray-700 group-hover:text-gray-900'}`}>
+                <div className="relative">
+                  <input
+                    type="radio"
+                    name="sort"
+                    value={option.value}
+                    checked={currentSortValue === option.value}
+                    onChange={() => onSortChange(option.sortBy, option.sortOrder)}
+                    className="sr-only"
+                  />
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    currentSortValue === option.value
+                      ? 'border-white bg-white'
+                      : 'border-gray-300 bg-white'
+                  }`}>
+                    {currentSortValue === option.value && (
+                      <FaCheckCircle className="text-blue-600" size={12} />
+                    )}
+                  </div>
+                </div>
+                <span className="text-xl">{option.icon}</span>
+                <span className={`text-sm font-medium flex-1 ${
+                  currentSortValue === option.value ? 'text-white' : 'text-gray-700'
+                }`}>
                   {option.label}
                 </span>
               </label>
             ))}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Price Range Filter */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-white border-2 border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
         <button
           onClick={() => setIsPriceExpanded(!isPriceExpanded)}
-          className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition"
+          className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white hover:from-gray-100 hover:to-gray-50 transition-all"
         >
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-gray-900">Price Range</span>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <FaDollarSign className="text-green-600" size={16} />
+            </div>
+            <span className="font-semibold text-gray-900">Price Range</span>
             {isFiltered && (
-              <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">
+              <span className="bg-gradient-to-r from-green-400 to-emerald-500 text-white text-xs px-2.5 py-1 rounded-full font-medium shadow-sm flex items-center gap-1">
+                <IoSparkles size={10} />
                 Active
               </span>
             )}
           </div>
           {isPriceExpanded ? (
-            <IoChevronUp className="text-gray-600" />
+            <IoChevronUp className="text-gray-400" size={20} />
           ) : (
-            <IoChevronDown className="text-gray-600" />
+            <IoChevronDown className="text-gray-400" size={20} />
           )}
         </button>
 
-        {isPriceExpanded && (
-          <div className="p-4">
+        <div className={`transition-all duration-300 ease-in-out ${isPriceExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+          <div className="p-5 bg-gradient-to-b from-white to-gray-50">
             <PriceRangeFilter
               min={priceRange.min}
               max={priceRange.max}
@@ -127,8 +199,28 @@ const FilterSidebar = ({
               onChange={onPriceChange}
             />
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Active Filters Summary */}
+      {isFiltered && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <IoSparkles className="text-amber-500 mt-0.5" size={20} />
+            <div className="flex-1">
+              <h4 className="font-semibold text-amber-900 mb-1">Active Filters</h4>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-amber-700">Price Range:</span>
+                  <span className="text-sm font-bold text-amber-900">
+                    ₹{selectedPriceRange[0]} - ₹{selectedPriceRange[1]}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -136,30 +228,37 @@ const FilterSidebar = ({
   if (isMobile) {
     return (
       <>
-        {/* Backdrop */}
+        {/* Backdrop with blur */}
         {isOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300"
             onClick={onClose}
           />
         )}
 
         {/* Drawer */}
         <div
-          className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 overflow-y-auto ${
+          className={`fixed top-0 right-0 h-full w-full max-w-md bg-gray-50 shadow-2xl z-50 transform transition-transform duration-300 overflow-y-auto ${
             isOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Filters & Sort</h2>
+          <div className="sticky top-0 bg-white border-b border-gray-200 z-10 shadow-sm">
+            <div className="flex items-center justify-between p-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FaFilter className="text-blue-600" size={18} />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Filters & Sort</h2>
+              </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-full transition"
+                className="p-2.5 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <FaTimes className="text-gray-600" size={20} />
               </button>
             </div>
+          </div>
+          <div className="p-5">
             {sidebarContent}
           </div>
         </div>
@@ -169,7 +268,7 @@ const FilterSidebar = ({
 
   // Desktop Sidebar
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 sticky top-6">
+    <div className="bg-gradient-to-b from-white to-gray-50 rounded-xl shadow-lg border border-gray-100 p-5 sticky top-6">
       {sidebarContent}
     </div>
   );

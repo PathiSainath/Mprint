@@ -34,8 +34,7 @@ const Navbar = () => {
     { label: "Photo Frames", path: "/frames" },
     { label: "Photo Prints", path: "/Prints" },
     { label: "Posters", path: "/posters" },
-    // { label: "Calendars, Notebooks & Diaries", path: "/calendars" },
-    // { label: "Custom Winter Wear", path: "/winter-wear" },
+  
   ];
 
   useEffect(() => {
@@ -147,7 +146,7 @@ const Navbar = () => {
           >
             <FaHeart className="text-lg text-red-500" />
             <span className="font-medium">
-              My Favorites {user && favoritesCount > 0 && `(${favoritesCount})`}
+              My Wishlist {user && favoritesCount > 0 && `(${favoritesCount})`}
             </span>
           </Link>
 

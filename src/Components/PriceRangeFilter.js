@@ -1,116 +1,127 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Slider from 'rc-slider';
-import 'rc-slider/assets/index.css';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const PriceRangeFilter = ({ min = 0, max = 10000, value = [0, 10000], onChange }) => {
-  const [priceRange, setPriceRange] = useState(value);
-  const [inputMin, setInputMin] = useState(value[0]);
-  const [inputMax, setInputMax] = useState(value[1]);
-  const [mounted, setMounted] = useState(false);
-  const sliderRef = useRef(null);
+  const [minValue, setMinValue] = useState(value[0]);
+  const [maxValue, setMaxValue] = useState(value[1]);
+  const [isDragging, setIsDragging] = useState(false);
+  const debounceTimer = useRef(null);
+  const minValRef = useRef(null);
+  const maxValRef = useRef(null);
+  const rangeRef = useRef(null);
 
+  // Update local state when prop value changes (but not during dragging)
   useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
+    if (!isDragging) {
+      setMinValue(value[0]);
+      setMaxValue(value[1]);
+    }
+  }, [value, isDragging]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
   }, []);
 
-  useEffect(() => {
-    if (mounted) {
-      setPriceRange(value);
-      setInputMin(value[0]);
-      setInputMax(value[1]);
+  // Debounced onChange to prevent too many API calls
+  const debouncedOnChange = useCallback((newMin, newMax) => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
     }
-  }, [value, mounted]);
+    debounceTimer.current = setTimeout(() => {
+      if (onChange) {
+        onChange([newMin, newMax]);
+      }
+      setIsDragging(false);
+    }, 500); // Wait 500ms after user stops dragging
+  }, [onChange]);
 
-  const handleSliderChange = (newValue) => {
-    if (!mounted) return;
-    setPriceRange(newValue);
-    setInputMin(newValue[0]);
-    setInputMax(newValue[1]);
-    if (onChange) onChange(newValue);
+  const handleMinChange = (e) => {
+    const value = Math.min(Number(e.target.value), maxValue - 1);
+    setMinValue(value);
+    setIsDragging(true);
+    debouncedOnChange(value, maxValue);
   };
 
-  const handleInputChange = (type, val) => {
-    if (!mounted) return;
-    const numValue = parseFloat(val) || 0;
-    let newRange = [...priceRange];
+  const handleMaxChange = (e) => {
+    const value = Math.max(Number(e.target.value), minValue + 1);
+    setMaxValue(value);
+    setIsDragging(true);
+    debouncedOnChange(minValue, value);
+  };
 
-    if (type === 'min') {
-      setInputMin(numValue);
-      newRange[0] = Math.min(numValue, priceRange[1]);
-    } else {
-      setInputMax(numValue);
-      newRange[1] = Math.max(numValue, priceRange[0]);
+  const handleMinInputChange = (e) => {
+    const value = Math.min(Number(e.target.value) || 0, maxValue - 1);
+    setMinValue(value);
+    if (onChange) {
+      onChange([value, maxValue]);
     }
+  };
 
-    setPriceRange(newRange);
-    if (onChange) onChange(newRange);
+  const handleMaxInputChange = (e) => {
+    const value = Math.max(Number(e.target.value) || 0, minValue + 1);
+    setMaxValue(value);
+    if (onChange) {
+      onChange([minValue, value]);
+    }
   };
 
   const formatPrice = (price) => {
     return `₹${Math.round(price).toLocaleString()}`;
   };
 
-  if (!mounted) {
-    return (
-      <div className="space-y-6">
-        <div className="px-2 h-6 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full animate-pulse"></div>
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-14 bg-gradient-to-r from-gray-100 to-gray-200 rounded-xl animate-pulse"></div>
-          <div className="flex-1 h-14 bg-gradient-to-r from-gray-100 to-gray-200 rounded-xl animate-pulse"></div>
-        </div>
-        <div className="h-14 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl animate-pulse"></div>
-      </div>
-    );
-  }
+  // Calculate percentage for styling
+  const getPercent = (value) => ((value - min) / (max - min)) * 100;
 
   return (
     <div className="space-y-6">
-      {/* Slider Container with glow effect */}
-      <div className="px-2 py-4" ref={sliderRef}>
-        <Slider
-          range
+      {/* Dual Range Slider */}
+      <div className="relative pt-2 pb-4 px-2">
+        {/* Track Background */}
+        <div className="absolute top-1/2 -translate-y-1/2 left-2 right-2 h-2 bg-gray-200 rounded-full"></div>
+
+        {/* Active Track */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 h-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full shadow-lg"
+          style={{
+            left: `calc(${getPercent(minValue)}% + 8px)`,
+            right: `calc(${100 - getPercent(maxValue)}% + 8px)`,
+          }}
+        ></div>
+
+        {/* Min Range Input */}
+        <input
+          ref={minValRef}
+          type="range"
           min={min}
           max={max}
-          value={priceRange}
-          onChange={handleSliderChange}
-          trackStyle={[{
-            backgroundColor: '#3B82F6',
-            height: 8,
-            borderRadius: 999,
-            boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)'
-          }]}
-          handleStyle={[
-            {
-              borderColor: '#3B82F6',
-              backgroundColor: '#FFFFFF',
-              width: 24,
-              height: 24,
-              marginTop: -8,
-              borderWidth: 4,
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4), 0 0 0 4px rgba(59, 130, 246, 0.1)',
-              transition: 'all 0.2s ease'
-            },
-            {
-              borderColor: '#3B82F6',
-              backgroundColor: '#FFFFFF',
-              width: 24,
-              height: 24,
-              marginTop: -8,
-              borderWidth: 4,
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4), 0 0 0 4px rgba(59, 130, 246, 0.1)',
-              transition: 'all 0.2s ease'
-            }
-          ]}
-          railStyle={{
-            backgroundColor: '#E5E7EB',
-            height: 8,
-            borderRadius: 999
+          value={minValue}
+          onChange={handleMinChange}
+          className="absolute w-full h-2 bg-transparent appearance-none pointer-events-none z-10"
+          style={{
+            zIndex: minValue > max - 100 ? 5 : 3,
+          }}
+        />
+
+        {/* Max Range Input */}
+        <input
+          ref={maxValRef}
+          type="range"
+          min={min}
+          max={max}
+          value={maxValue}
+          onChange={handleMaxChange}
+          className="absolute w-full h-2 bg-transparent appearance-none pointer-events-none z-10"
+          style={{
+            zIndex: 4,
           }}
         />
       </div>
 
-      {/* Price Inputs with enhanced styling */}
+      {/* Price Input Fields */}
       <div className="flex items-center gap-4">
         <div className="flex-1">
           <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
@@ -118,21 +129,18 @@ const PriceRangeFilter = ({ min = 0, max = 10000, value = [0, 10000], onChange }
           </label>
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600 text-base font-bold">₹</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600 text-base font-bold z-10">₹</span>
             <input
               type="number"
-              value={inputMin}
-              onChange={(e) => handleInputChange('min', e.target.value)}
-              className="relative w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-semibold text-gray-900 transition-all hover:border-blue-300"
-              min={min}
-              max={max}
+              value={minValue}
+              onChange={handleMinInputChange}
+              className="relative w-full pl-10 pr-4 py-3.5 text-base font-semibold text-gray-800 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-blue-300"
+              placeholder="Min"
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-center mt-7">
-          <div className="w-8 h-0.5 bg-gradient-to-r from-gray-300 to-gray-400 rounded-full"></div>
-        </div>
+        <div className="flex-shrink-0 text-gray-400 font-bold text-xl mt-6">—</div>
 
         <div className="flex-1">
           <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">
@@ -140,44 +148,115 @@ const PriceRangeFilter = ({ min = 0, max = 10000, value = [0, 10000], onChange }
           </label>
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity"></div>
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600 text-base font-bold">₹</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600 text-base font-bold z-10">₹</span>
             <input
               type="number"
-              value={inputMax}
-              onChange={(e) => handleInputChange('max', e.target.value)}
-              className="relative w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-semibold text-gray-900 transition-all hover:border-blue-300"
-              min={min}
-              max={max}
+              value={maxValue}
+              onChange={handleMaxInputChange}
+              className="relative w-full pl-10 pr-4 py-3.5 text-base font-semibold text-gray-800 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-blue-300"
+              placeholder="Max"
             />
           </div>
         </div>
       </div>
 
-      {/* Current Range Display with gradient */}
-      <div className="relative overflow-hidden rounded-xl">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 opacity-90"></div>
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full -ml-12 -mb-12"></div>
+      {/* Selected Range Display */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-5 shadow-sm border border-blue-100">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-200 rounded-full opacity-20 blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-200 rounded-full opacity-20 blur-2xl translate-y-1/2 -translate-x-1/2"></div>
 
-        <div className="relative p-4 text-center">
-          <p className="text-xs font-semibold text-white/80 mb-1 uppercase tracking-wide">
-            Selected Range
-          </p>
-          <p className="text-2xl font-bold text-white">
-            {formatPrice(priceRange[0])}
-            <span className="mx-2 text-white/60">-</span>
-            {formatPrice(priceRange[1])}
-          </p>
-          <div className="mt-2 flex items-center justify-center gap-2">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            <p className="text-xs text-white/90">
-              {max - priceRange[1] + priceRange[0] - min > 0
-                ? `${Math.round(((priceRange[1] - priceRange[0]) / (max - min)) * 100)}% of total range`
-                : 'Full range selected'}
-            </p>
+        <div className="relative">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide flex items-center gap-2">
+                Selected Range
+                {isDragging && (
+                  <span className="inline-flex items-center gap-1 text-yellow-600">
+                    <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+                    <span className="text-xs">Updating...</span>
+                  </span>
+                )}
+              </p>
+              <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                {formatPrice(minValue)} - {formatPrice(maxValue)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Range</p>
+              <p className="text-lg font-bold text-blue-600">
+                {Math.round(((maxValue - minValue) / (max - min)) * 100)}%
+              </p>
+            </div>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        input[type='range'] {
+          pointer-events: all;
+        }
+
+        input[type='range']::-webkit-slider-thumb {
+          appearance: none;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: white;
+          border: 4px solid #3B82F6;
+          cursor: grab;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4), 0 0 0 4px rgba(59, 130, 246, 0.1);
+          transition: all 0.2s ease;
+          pointer-events: all;
+        }
+
+        input[type='range']:active::-webkit-slider-thumb {
+          cursor: grabbing;
+          box-shadow: 0 6px 16px rgba(59, 130, 246, 0.6), 0 0 0 6px rgba(59, 130, 246, 0.15);
+          transform: scale(1.1);
+        }
+
+        input[type='range']::-moz-range-thumb {
+          appearance: none;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: white;
+          border: 4px solid #3B82F6;
+          cursor: grab;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4), 0 0 0 4px rgba(59, 130, 246, 0.1);
+          transition: all 0.2s ease;
+          pointer-events: all;
+        }
+
+        input[type='range']:active::-moz-range-thumb {
+          cursor: grabbing;
+          box-shadow: 0 6px 16px rgba(59, 130, 246, 0.6), 0 0 0 6px rgba(59, 130, 246, 0.15);
+          transform: scale(1.1);
+        }
+
+        /* Hide default track */
+        input[type='range']::-webkit-slider-runnable-track {
+          appearance: none;
+          background: transparent;
+        }
+
+        input[type='range']::-moz-range-track {
+          appearance: none;
+          background: transparent;
+        }
+
+        /* Remove number input spinners */
+        input[type='number']::-webkit-inner-spin-button,
+        input[type='number']::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        input[type='number'] {
+          -moz-appearance: textfield;
+        }
+      `}</style>
     </div>
   );
 };

@@ -131,8 +131,8 @@ const CheckoutPage = () => {
     try {
       // Prepare order items
       const items = cartItems.map(item => ({
-        product_id: item.product_id,
-        quantity: item.quantity
+        product_id: item.product_id || item.product?.id,
+        quantity: item.quantity || 1
       }));
 
       const orderData = {
@@ -347,25 +347,32 @@ const CheckoutPage = () => {
 
               {/* Items */}
               <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
-                {cartItems.map((item) => (
-                  <div key={item.id} className="flex gap-3">
-                    <img
-                      src={item.product?.images?.[0]?.image_path
-                        ? `${API_BASE_URL}/storage/${item.product.images[0].image_path}`
-                        : 'https://via.placeholder.com/80'
-                      }
-                      alt={item.product?.name}
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 text-sm">{item.product?.name}</p>
-                      <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
-                      <p className="text-sm font-semibold text-gray-900">
-                        ₹{((item.product?.sale_price || item.product?.price) * item.quantity).toFixed(2)}
-                      </p>
+                {cartItems.map((item) => {
+                  const product = item.product || item;
+                  const imageUrl = product?.featured_image_url ||
+                                   product?.images?.[0]?.image_url ||
+                                   (product?.images?.[0]?.image_path ? `${API_BASE_URL}/storage/${product.images[0].image_path}` : null);
+
+                  return (
+                    <div key={item.id} className="flex gap-3">
+                      <img
+                        src={imageUrl || 'https://via.placeholder.com/80?text=No+Image'}
+                        alt={product?.name || 'Product'}
+                        className="w-16 h-16 object-cover rounded"
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/80?text=No+Image';
+                        }}
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 text-sm">{product?.name}</p>
+                        <p className="text-sm text-gray-600">Qty: {item.quantity || 1}</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          ₹{((product?.sale_price || product?.price || 0) * (item.quantity || 1)).toFixed(2)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Totals */}

@@ -99,7 +99,7 @@ const FavoritesPage = () => {
     setAddingToCart(prev => new Set([...prev, product.id]));
     try {
       await api.get("/sanctum/csrf-cookie");
-      const response = await api.post("/api/cart", {
+      const response = await api.post("/api/cart/add", {
         product_id: product.id,
         quantity: 1
       });
@@ -146,7 +146,7 @@ const FavoritesPage = () => {
       // Favorites are product objects directly
       try {
         await api.get("/sanctum/csrf-cookie");
-        await api.post("/api/cart", {
+        await api.post("/api/cart/add", {
           product_id: product.id,
           quantity: 1
         });

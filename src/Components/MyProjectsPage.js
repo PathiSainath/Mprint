@@ -136,7 +136,7 @@ const MyProjectsPage = () => {
     setAddingToCart(prev => new Set([...prev, productData.id]));
     try {
       await api.get('/sanctum/csrf-cookie');
-      const response = await api.post('/api/cart', {
+      const response = await api.post('/api/cart/add', {
         product_id: productData.id,
         quantity: 1
       });

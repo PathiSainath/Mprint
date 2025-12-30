@@ -24,6 +24,7 @@ const PurchaseHistoryPage = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState(null);
+  const [successToast, setSuccessToast] = useState('');
 
   const API_BASE_URL = 'http://127.0.0.1:8000';
 
@@ -119,6 +120,16 @@ const PurchaseHistoryPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      {/* Success Toast */}
+      {successToast && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-in">
+          <div className="bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3">
+            <FaCheckCircle className="text-xl" />
+            <p className="font-medium">{successToast}</p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
@@ -338,6 +349,8 @@ const PurchaseHistoryPage = () => {
             setShowTicketModal(false);
             setSelectedOrder(null);
             setSelectedProduct(null);
+            setSuccessToast('Complaint submitted successfully!');
+            setTimeout(() => setSuccessToast(''), 3000);
           }}
         />
       )}

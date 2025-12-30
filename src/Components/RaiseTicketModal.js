@@ -4,7 +4,6 @@ import {
   FaExclamationTriangle,
   FaImage,
   FaTrash,
-  FaCheckCircle,
   FaSpinner
 } from 'react-icons/fa';
 import api from '../api/api';
@@ -18,7 +17,6 @@ const RaiseTicketModal = ({ order, product, onClose, onSuccess }) => {
   const [imagePreviews, setImagePreviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const issueTypes = [
     'Product Damaged',
@@ -88,7 +86,6 @@ const RaiseTicketModal = ({ order, product, onClose, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
 
     // Validation
     if (!formData.issueType) {
@@ -123,10 +120,13 @@ const RaiseTicketModal = ({ order, product, onClose, onSuccess }) => {
       });
 
       if (response.data.success) {
-        setSuccess(response.data.message || 'Complaint submitted successfully!');
-        setTimeout(() => {
-          onSuccess();
-        }, 2000);
+        // Close modal immediately
+        onSuccess();
+
+        // Show toast notification (will be implemented in parent component)
+        if (window.showToast) {
+          window.showToast('Complaint submitted successfully!', 'success');
+        }
       }
     } catch (error) {
       console.error('Error submitting complaint:', error);
@@ -174,14 +174,6 @@ const RaiseTicketModal = ({ order, product, onClose, onSuccess }) => {
               <p><span className="font-medium">Product:</span> {product.product_name}</p>
             </div>
           </div>
-
-          {/* Success Message */}
-          {success && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-              <FaCheckCircle className="text-green-500 text-xl" />
-              <p className="text-green-700">{success}</p>
-            </div>
-          )}
 
           {/* Error Message */}
           {error && (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
@@ -6,21 +6,32 @@ const PriceRangeFilter = ({ min = 0, max = 10000, value = [0, 10000], onChange }
   const [priceRange, setPriceRange] = useState(value);
   const [inputMin, setInputMin] = useState(value[0]);
   const [inputMax, setInputMax] = useState(value[1]);
+  const [mounted, setMounted] = useState(false);
+  const sliderRef = useRef(null);
 
   useEffect(() => {
-    setPriceRange(value);
-    setInputMin(value[0]);
-    setInputMax(value[1]);
-  }, [value]);
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      setPriceRange(value);
+      setInputMin(value[0]);
+      setInputMax(value[1]);
+    }
+  }, [value, mounted]);
 
   const handleSliderChange = (newValue) => {
+    if (!mounted) return;
     setPriceRange(newValue);
     setInputMin(newValue[0]);
     setInputMax(newValue[1]);
-    onChange(newValue);
+    if (onChange) onChange(newValue);
   };
 
   const handleInputChange = (type, val) => {
+    if (!mounted) return;
     const numValue = parseFloat(val) || 0;
     let newRange = [...priceRange];
 
@@ -33,16 +44,29 @@ const PriceRangeFilter = ({ min = 0, max = 10000, value = [0, 10000], onChange }
     }
 
     setPriceRange(newRange);
-    onChange(newRange);
+    if (onChange) onChange(newRange);
   };
 
   const formatPrice = (price) => {
     return `₹${Math.round(price)}`;
   };
 
+  if (!mounted) {
+    return (
+      <div className="space-y-6">
+        <div className="px-2 h-6 bg-gray-100 rounded animate-pulse"></div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-12 bg-gray-100 rounded animate-pulse"></div>
+          <div className="flex-1 h-12 bg-gray-100 rounded animate-pulse"></div>
+        </div>
+        <div className="h-12 bg-gray-100 rounded animate-pulse"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="px-2">
+      <div className="px-2" ref={sliderRef}>
         {/* Slider */}
         <Slider
           range

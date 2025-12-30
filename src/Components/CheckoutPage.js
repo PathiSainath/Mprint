@@ -51,11 +51,11 @@ const CheckoutPage = () => {
 
       // Check if Buy Now (single product) or cart checkout
       const buyNow = searchParams.get('buyNow');
-      const productId = searchParams.get('productId');
+      const productSlug = searchParams.get('productSlug');
 
-      if (buyNow === 'true' && productId) {
+      if (buyNow === 'true' && productSlug) {
         // Fetch single product for Buy Now
-        await fetchSingleProduct(productId);
+        await fetchSingleProduct(productSlug);
       } else {
         // Fetch cart items
         await fetchCartItems();
@@ -66,9 +66,9 @@ const CheckoutPage = () => {
     }
   };
 
-  const fetchSingleProduct = async (productId) => {
+  const fetchSingleProduct = async (productSlug) => {
     try {
-      const response = await api.get(`/api/products/${productId}`);
+      const response = await api.get(`/api/products/${productSlug}`);
       if (response.data.success) {
         const product = response.data.data;
         setCartItems([{
@@ -80,7 +80,7 @@ const CheckoutPage = () => {
       }
     } catch (error) {
       console.error('Error fetching product:', error);
-      setError('Failed to load product');
+      setError('Failed to load product. Please try again.');
     } finally {
       setLoading(false);
     }

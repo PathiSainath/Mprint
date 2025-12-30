@@ -11,7 +11,7 @@ import {
   IoChevronUp,
   IoEyeOutline
 } from 'react-icons/io5';
-import axios from 'axios';
+import api from '../../api/api';
 
 const ComplaintsManagement = () => {
   const [complaints, setComplaints] = useState([]);
@@ -39,7 +39,7 @@ const ComplaintsManagement = () => {
         params.status = statusFilter;
       }
 
-      const response = await axios.get(`${API_BASE_URL}/api/admin/complaints`, { params });
+      const response = await api.get('/api/admin/complaints', { params });
 
       if (response.data.success) {
         setComplaints(response.data.data.data || []);
@@ -60,8 +60,8 @@ const ComplaintsManagement = () => {
         payload.admin_response = response;
       }
 
-      const res = await axios.put(
-        `${API_BASE_URL}/api/admin/complaints/${complaintId}/status`,
+      const res = await api.put(
+        `/api/admin/complaints/${complaintId}/status`,
         payload
       );
 

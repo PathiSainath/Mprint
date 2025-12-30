@@ -10,7 +10,7 @@ import {
   IoChevronDown,
   IoChevronUp
 } from 'react-icons/io5';
-import axios from 'axios';
+import api from '../../api/api';
 
 const OrdersManagement = () => {
   const [orders, setOrders] = useState([]);
@@ -36,7 +36,7 @@ const OrdersManagement = () => {
         params.status = statusFilter;
       }
 
-      const response = await axios.get(`${API_BASE_URL}/api/admin/orders`, { params });
+      const response = await api.get('/api/admin/orders', { params });
 
       if (response.data.success) {
         setOrders(response.data.data.data || []);
@@ -52,8 +52,8 @@ const OrdersManagement = () => {
   const updateOrderStatus = async (orderId, newStatus) => {
     setUpdatingStatus(orderId);
     try {
-      const response = await axios.put(
-        `${API_BASE_URL}/api/admin/orders/${orderId}/status`,
+      const response = await api.put(
+        `/api/admin/orders/${orderId}/status`,
         { status: newStatus }
       );
 

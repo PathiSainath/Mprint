@@ -50,6 +50,7 @@ import PrintsPage from "./Components/PrintsPage";
 import PostersPage from "./Components/PostersPage";
 import PoloTshirtsPage from "./Components/PoloTshirtsPage";
 import CertificatesPage from "./Components/CertificatesPage";
+import BulkOrdersPage from "./Components/BulkOrdersPage";
 
 // ==========================================
 // AUTH PAGES
@@ -368,7 +369,29 @@ function App() {
             }
           /> */}
 
-          {/* ==================== BULK ORDERS ==================== */}
+          {/* ==================== BULK ORDERS PAGE ==================== */}
+          <Route
+            path="/bulk-orders"
+            element={
+              <>
+                <BulkOrdersPage />
+                <SubscribeSection />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/bulk-orders/:slug"
+            element={
+              <>
+                <CardDetailPage />
+                <SubscribeSection />
+                <Footer />
+              </>
+            }
+          />
+
+          {/* ==================== PRINTS ==================== */}
           <Route
             path="/Prints"
             element={

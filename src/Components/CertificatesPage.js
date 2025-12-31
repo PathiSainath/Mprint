@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaRegHeart, FaHeart, FaStar, FaCertificate } from "react-icons/fa";
+import { FaRegHeart, FaHeart, FaStar, FaCertificate, FaFilter } from "react-icons/fa";
 import api from "../api/api";
+import FilterSidebar from "./FilterSidebar";
 
 const CertificatesPage = () => {
   const navigate = useNavigate();
@@ -11,6 +12,24 @@ const CertificatesPage = () => {
   const [favorites, setFavorites] = useState([]);
   const [user, setUser] = useState(null);
   const API_BASE_URL = "http://127.0.0.1:8000/api";
+
+  // Filter & Sort states
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 10000 });
+  const [selectedPriceRange, setSelectedPriceRange] = useState([0, 10000]);
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  // Check if filters are active
+  const isFiltered = selectedPriceRange[0] !== priceRange.min || selectedPriceRange[1] !== priceRange.max;
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Check if user is logged in
   useEffect(() => {
@@ -49,35 +68,82 @@ const CertificatesPage = () => {
   }, [user]);
 
   useEffect(() => {
-    const fetchCertificates = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const response = await fetch(`${API_BASE_URL}/products/category/certificates`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        if (data.data && data.data.data) {
-          setProducts(data.data.data);
-        } else {
-          setProducts([]);
-        }
-      } catch (err) {
-        console.error("Fetch error:", err);
-        setError("Failed to load certificate products from backend.");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchCertificates();
-  }, []);
+  }, [selectedPriceRange, sortBy, sortOrder]);
+
+  const fetchCertificates = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      });
+
+      // Only add price filters if they're different from the default range
+      if (selectedPriceRange[0] !== priceRange.min) {
+        params.append('min_price', selectedPriceRange[0]);
+      }
+      if (selectedPriceRange[1] !== priceRange.max) {
+        params.append('max_price', selectedPriceRange[1]);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/products/category/certificates?${params}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+
+      let productsData = [];
+      if (response.ok) {
+        const data = await response.json();
+
+        // Set price range from backend
+        if (data.price_range) {
+          const newRange = {
+            min: Math.floor(data.price_range.min),
+            max: Math.ceil(data.price_range.max)
+          };
+          setPriceRange(newRange);
+          // Only set selected range on first load
+          if (selectedPriceRange[0] === 0 && selectedPriceRange[1] === 10000) {
+            setSelectedPriceRange([newRange.min, newRange.max]);
+          }
+        }
+
+        if (data.data?.data) {
+          productsData = data.data.data;
+        } else {
+          productsData = [];
+        }
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      setProducts(productsData);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Failed to load certificate products from backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePriceChange = (newRange) => {
+    setSelectedPriceRange(newRange);
+  };
+
+  const handleSortChange = (newSortBy, newSortOrder) => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+  };
+
+  const handleClearFilters = () => {
+    setSelectedPriceRange([priceRange.min, priceRange.max]);
+    setSortBy('created_at');
+    setSortOrder('desc');
+  };
 
   const getProductImageUrl = (product) => {
     if (product.featured_image) {
@@ -167,8 +233,9 @@ const CertificatesPage = () => {
 
   return (
     <div className="px-6 md:px-10 py-10 bg-gradient-to-b from-orange-50 to-gray-50 min-h-screen">
+      {/* Header */}
       <div className="mb-10">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
             🏅 Certificates & Awards
           </h1>
@@ -180,7 +247,9 @@ const CertificatesPage = () => {
           </p>
         </div>
       </div>
-      <div className="max-w-4xl mx-auto mb-10">
+
+      {/* Stats */}
+      <div className="max-w-7xl mx-auto mb-10">
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
@@ -198,24 +267,88 @@ const CertificatesPage = () => {
           </div>
         </div>
       </div>
-      {products.length === 0 ? (
-        <div className="max-w-2xl mx-auto text-center py-16">
-          <div className="text-gray-400 text-6xl mb-6">
-            <FaCertificate />
-          </div>
-          <h3 className="text-2xl font-semibold text-gray-800 mb-4">No Certificates Available</h3>
-          <p className="text-gray-600 mb-6">
-            We're working on adding beautiful certificates and awards. Check back soon!
-          </p>
-          <Link
-            to="/"
-            className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition inline-block"
+
+      {/* Mobile Filter Button */}
+      {isMobile && (
+        <div className="max-w-7xl mx-auto mb-6">
+          <button
+            onClick={() => setIsFilterOpen(true)}
+            className="relative w-full group overflow-hidden"
           >
-            Browse Other Categories
-          </Link>
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 rounded-xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
+            <div className="relative flex items-center justify-center gap-3 px-6 py-4 text-white">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <FaFilter size={16} />
+              </div>
+              <span className="font-bold text-lg">Filters & Sort</span>
+              {isFiltered && (
+                <span className="ml-auto bg-white/30 text-white text-xs px-3 py-1 rounded-full font-medium backdrop-blur-sm">
+                  Active
+                </span>
+              )}
+            </div>
+          </button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 max-w-7xl mx-auto">
+      )}
+
+      {/* Main Content with Sidebar */}
+      <div className="max-w-7xl mx-auto">
+        <div className="flex gap-8">
+          {/* Desktop Sidebar */}
+          {!isMobile && (
+            <div className="w-80 flex-shrink-0">
+              <FilterSidebar
+                priceRange={priceRange}
+                selectedPriceRange={selectedPriceRange}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onPriceChange={handlePriceChange}
+                onSortChange={handleSortChange}
+                onClearFilters={handleClearFilters}
+                totalProducts={products.length}
+                isMobile={false}
+              />
+            </div>
+          )}
+
+          {/* Mobile Drawer */}
+          {isMobile && (
+            <FilterSidebar
+              priceRange={priceRange}
+              selectedPriceRange={selectedPriceRange}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onPriceChange={handlePriceChange}
+              onSortChange={handleSortChange}
+              onClearFilters={handleClearFilters}
+              totalProducts={products.length}
+              isMobile={true}
+              isOpen={isFilterOpen}
+              onClose={() => setIsFilterOpen(false)}
+            />
+          )}
+
+          {/* Products Grid */}
+          <div className="flex-1">
+            {products.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-lg shadow-md">
+                <div className="text-gray-400 text-6xl mb-6">
+                  <FaCertificate />
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-800 mb-4">No Certificates Found</h3>
+                <p className="text-gray-600 mb-6">
+                  Try adjusting your filters or check back soon!
+                </p>
+                <button
+                  onClick={handleClearFilters}
+                  className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition inline-block"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {products.map((product) => {
             const isFavorite = favorites.includes(product.id);
             const imageSrc = getProductImageUrl(product);
@@ -292,8 +425,11 @@ const CertificatesPage = () => {
               </div>
             );
           })}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

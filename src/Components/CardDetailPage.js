@@ -1,9 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaRegHeart, FaHeart, FaArrowLeft, FaStar, FaStarHalfAlt, FaRegStar } from "react-icons/fa";
-import { IoChevronDown, IoCheckmarkCircle, IoClose, IoChevronBack, IoChevronForward } from "react-icons/io5";
+import { IoChevronDown, IoCheckmarkCircle, IoClose, IoChevronBack, IoChevronForward, IoCartOutline, IoFlash } from "react-icons/io5";
 import api from "../api/api";
 import { useFavorites } from "../context/FavoritesContext";
+import RelatedProducts from "./RelatedProducts";
+import DesignUpload from "./DesignUpload";
+import QuantityPricingSelector from "./QuantityPricingSelector";
+import ProductOptionsPanel from "./ProductOptionsPanel";
+import FlipCardPreview from "./FlipCardPreview";
+import OrderConfirmationSection from "./OrderConfirmationSection";
 
 const categoryRoutesMap = {
   bookmarks: "bookmarks",
@@ -24,32 +30,45 @@ const categoryRoutesMap = {
 };
 
 const CardDetailPage = () => {
-  const { slug, category } = useParams(); // Expected route: /:category/:slug
+  const { slug, category } = useParams();
   const navigate = useNavigate();
   const { isFavorite: isFavoritedGlobal, toggleFavorite: toggleFavoriteGlobal } = useFavorites();
+  const designUploadRef = useRef(null);
 
+  // Product State
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [user, setUser] = useState(null);
 
+  // Image State
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [allImages, setAllImages] = useState([]);
   const [cart, setCart] = useState([]);
 
+  // Product Configuration State
   const [attributes, setAttributes] = useState({});
   const [selectedAttributes, setSelectedAttributes] = useState({});
+  const [customDesigns, setCustomDesigns] = useState({ front: null, back: null });
 
+  // UI Flow State
+  const [showOptionsPanel, setShowOptionsPanel] = useState(false);
+  const [optionsCompleted, setOptionsCompleted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Confirmation State
+  const [confirmDesign, setConfirmDesign] = useState(false);
+  const [confirmTerms, setConfirmTerms] = useState(false);
+
+  // Fetch Product
   useEffect(() => {
     const fetchProduct = async () => {
       setLoading(true);
       setError("");
 
       try {
-        // Validate category param and derive API endpoint path accordingly
         const apiCategory = categoryRoutesMap[category] || category;
-
         const response = await api.get(`/api/products/${slug}?category=${apiCategory}`);
 
         if (response.data?.success && response.data?.data) {
@@ -91,14 +110,29 @@ const CardDetailPage = () => {
           if (productData.attributes && typeof productData.attributes === "object") {
             setAttributes(productData.attributes);
 
-            const defaults = {};
+            // Start with mandatory orientation default
+            const defaults = {
+              orientation: "horizontal" // Mandatory default - card orientation
+            };
+
+            // Add defaults from database attributes
             Object.entries(productData.attributes).forEach(([key, value]) => {
+              // Skip orientation-related keys from DB (we handle it separately)
+              const normalizedKey = key.toLowerCase().replace(/[_\s]/g, "");
+              if (normalizedKey === "orientation" || normalizedKey === "productorientation") {
+                return;
+              }
+
               if (Array.isArray(value) && value.length > 0) {
                 const firstOption = value[0];
-                defaults[key] = firstOption.id || firstOption.value || firstOption.quantity || firstOption;
+                // Handle various attribute option formats
+                defaults[key] = firstOption.id || firstOption.value || firstOption.name || firstOption.quantity || firstOption;
               }
             });
             setSelectedAttributes(defaults);
+          } else {
+            // Even if no attributes, set default orientation
+            setSelectedAttributes({ orientation: "horizontal" });
           }
         } else {
           setError("Product not found.");
@@ -113,11 +147,11 @@ const CardDetailPage = () => {
     if (slug) fetchProduct();
   }, [slug, category]);
 
+  // Load cart and check user
   useEffect(() => {
     const savedCart = localStorage.getItem("ecommerce_cart");
     if (savedCart) setCart(JSON.parse(savedCart));
 
-    // Check if user is logged in
     const checkUser = async () => {
       try {
         await api.get("/sanctum/csrf-cookie");
@@ -130,17 +164,25 @@ const CardDetailPage = () => {
     checkUser();
   }, []);
 
-  // Get favorite status from context
   const isFavorite = product ? isFavoritedGlobal(product.id) : false;
+  const hasAllDesigns = customDesigns.front !== null && customDesigns.back !== null;
+  const canOrder = confirmDesign && confirmTerms && hasAllDesigns && optionsCompleted;
 
+  // Scroll to design upload section
+  const scrollToDesignUpload = () => {
+    designUploadRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  // Handle Add to Cart with FormData
   const handleAddToCart = async () => {
-    if (!product) return;
+    if (!product || !canOrder) return;
 
+    setIsSubmitting(true);
     try {
       const selectedPrice = getSelectedPrice();
+      await api.get("/sanctum/csrf-cookie");
 
-      await api.get("/sanctum/csrf-cookie"); // CSRF + session
-
+      // First, add to cart without files
       const cartPayload = {
         product_id: product.id,
         quantity: selectedPrice.quantity,
@@ -148,10 +190,29 @@ const CardDetailPage = () => {
       };
 
       const response = await api.post("/api/cart/add", cartPayload);
+
       if (response.data?.success) {
-        setSuccess("✅ Product added to cart successfully!");
+        const cartId = response.data.data?.id;
+
+        // If we have designs and cart ID, upload them
+        if (cartId && (customDesigns.front || customDesigns.back)) {
+          const formData = new FormData();
+          if (customDesigns.front?.file) {
+            formData.append("front_design", customDesigns.front.file);
+          }
+          if (customDesigns.back?.file) {
+            formData.append("back_design", customDesigns.back.file);
+          }
+
+          await api.post(`/api/cart/${cartId}/upload-designs`, formData, {
+            headers: { "Content-Type": "multipart/form-data" }
+          });
+        }
+
+        setSuccess("Product added to cart successfully!");
         setTimeout(() => setSuccess(""), 3000);
 
+        // Update local cart
         const cartItem = {
           id: product.id,
           slug: product.slug,
@@ -161,6 +222,7 @@ const CardDetailPage = () => {
           unitPrice: selectedPrice.unit,
           quantity: selectedPrice.quantity,
           selectedAttributes: selectedAttributes,
+          hasCustomDesigns: hasAllDesigns,
           image: allImages[0]?.url,
           addedAt: new Date().toISOString(),
         };
@@ -173,11 +235,31 @@ const CardDetailPage = () => {
       const errorMsg = err?.response?.data?.message || "Failed to add to cart. Please try again.";
       setError(errorMsg);
       setTimeout(() => setError(""), 3000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle Buy Now
+  const handleBuyNow = async () => {
+    if (!product || !canOrder) return;
+
+    setIsSubmitting(true);
+    try {
+      // First add to cart
+      await handleAddToCart();
+
+      // Navigate to checkout
+      navigate(`/checkout?buyNow=true&productSlug=${product.slug}`);
+    } catch (err) {
+      setError("Failed to process. Please try again.");
+      setTimeout(() => setError(""), 3000);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const toggleFavorite = async () => {
-    // Check if user is logged in
     if (!user) {
       navigate("/login", {
         state: {
@@ -188,11 +270,8 @@ const CardDetailPage = () => {
       return;
     }
 
-    if (!product) {
-      return;
-    }
+    if (!product) return;
 
-    // Use context toggle function
     const result = await toggleFavoriteGlobal(product.id);
     if (result.success) {
       setSuccess(result.message);
@@ -274,99 +353,9 @@ const CardDetailPage = () => {
     )}`;
   };
 
-  const renderAttribute = (attrKey, attrValue) => {
-    if (!Array.isArray(attrValue) || attrValue.length === 0) return null;
-
-    const label = formatLabel(attrKey);
-    const selectedValue = selectedAttributes[attrKey];
-
-    if (attrKey === "delivery_speed" || attrKey === "delivery_options") {
-      return (
-        <div key={attrKey} className="mb-5">
-          <h4 className="text-base font-semibold text-gray-900 mb-3">{label}</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {attrValue.map((option) => {
-              const optionId = option.id || option.value;
-              const optionName = option.name || option.label;
-              const isSelected = selectedValue === optionId;
-
-              return (
-                <button
-                  key={optionId}
-                  onClick={() => handleAttributeChange(attrKey, optionId)}
-                  className={`border-2 rounded-lg py-3 px-4 text-center font-medium transition ${isSelected
-                      ? "border-black bg-white text-gray-900"
-                      : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-                    }`}
-                >
-                  {optionName}
-                  {option.price > 0 && <span className="text-sm text-gray-600 block mt-1">+₹{option.price}</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-
-    if (attrKey === "color" && attrValue[0]?.value?.startsWith("#")) {
-      return (
-        <div key={attrKey} className="mb-5">
-          <h4 className="text-base font-semibold text-gray-900 mb-3">{label}</h4>
-          <div className="flex flex-wrap gap-3">
-            {attrValue.map((option) => {
-              const optionId = option.id || option.value;
-              const isSelected = selectedValue === optionId;
-
-              return (
-                <button
-                  key={optionId}
-                  onClick={() => handleAttributeChange(attrKey, optionId)}
-                  className={`w-12 h-12 rounded-full border-2 transition-all ${isSelected ? "border-blue-500 scale-110 shadow-lg" : "border-gray-300 hover:border-gray-400"
-                    }`}
-                  style={{ backgroundColor: option.value }}
-                  title={option.name}
-                >
-                  {isSelected && (
-                    <IoCheckmarkCircle
-                      className={`w-full h-full ${option.value === "#FFFFFF" ? "text-blue-500" : "text-white"}`}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div key={attrKey} className="mb-5">
-        <label className="block text-base font-semibold text-gray-900 mb-2">{label}</label>
-        <div className="relative">
-          <select
-            value={selectedValue || ""}
-            onChange={(e) => handleAttributeChange(attrKey, e.target.value)}
-            className="w-full border-2 border-gray-300 rounded-lg py-3 px-4 pr-10 bg-white text-gray-900 font-medium appearance-none focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
-          >
-            <option value="">Select...</option>
-            {attrValue.map((option, index) => {
-              const optionId = option.id || option.value || option.quantity || index;
-              const optionName = option.name || option.label || option.quantity || optionId;
-              let displayText = optionName;
-              if (option.quantity && option.unitPrice) displayText = `${option.quantity} (₹${parseFloat(option.unitPrice).toFixed(2)} / unit)`;
-              if (option.price > 0 && attrKey !== "quantity") displayText += ` (+₹${option.price})`;
-              return (
-                <option key={optionId} value={optionId}>
-                  {displayText}
-                </option>
-              );
-            })}
-          </select>
-          <IoChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
-        </div>
-      </div>
-    );
+  const handleOptionsProceed = () => {
+    setShowOptionsPanel(false);
+    setOptionsCompleted(true);
   };
 
   if (loading) {
@@ -380,7 +369,7 @@ const CardDetailPage = () => {
     );
   }
 
-  if (error) {
+  if (error && !product) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-lg">
@@ -405,7 +394,8 @@ const CardDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b">
+      {/* Header */}
+      <div className="bg-white border-b sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition">
             <FaArrowLeft size={16} />
@@ -414,14 +404,15 @@ const CardDetailPage = () => {
         </div>
       </div>
 
-      {success && (
+      {/* Success/Error Messages */}
+      {(success || error) && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center justify-between">
+          <div className={`${success ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"} border px-4 py-3 rounded-lg flex items-center justify-between`}>
             <div className="flex items-center gap-2">
               <IoCheckmarkCircle size={20} />
-              {success}
+              {success || error}
             </div>
-            <button onClick={() => setSuccess("")}>
+            <button onClick={() => { setSuccess(""); setError(""); }}>
               <IoClose size={20} />
             </button>
           </div>
@@ -429,187 +420,279 @@ const CardDetailPage = () => {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 p-8 lg:p-12">
-            <div className="space-y-6">
-              <div className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden group">
-                <img
-                  src={allImages[selectedImageIndex]?.url}
-                  alt={allImages[selectedImageIndex]?.alt || product.name}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  onError={handleImageError}
-                />
-                {allImages.length > 1 && (
-                  <>
-                    <button onClick={previousImage} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition">
-                      <IoChevronBack size={20} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* Left Column - Product Images & Info */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6 lg:p-8">
+                {/* Product Images */}
+                <div className="space-y-4">
+                  <div className="relative aspect-square bg-gray-100 rounded-xl overflow-hidden group">
+                    <img
+                      src={allImages[selectedImageIndex]?.url}
+                      alt={allImages[selectedImageIndex]?.alt || product.name}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={handleImageError}
+                    />
+                    {allImages.length > 1 && (
+                      <>
+                        <button onClick={previousImage} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition">
+                          <IoChevronBack size={18} />
+                        </button>
+                        <button onClick={nextImage} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition">
+                          <IoChevronForward size={18} />
+                        </button>
+                      </>
+                    )}
+                    <button onClick={toggleFavorite} className="absolute top-3 right-3 p-2.5 bg-white/90 rounded-full shadow-md">
+                      {isFavorite ? <FaHeart className="text-red-500" size={18} /> : <FaRegHeart className="text-gray-600" size={18} />}
                     </button>
-                    <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition">
-                      <IoChevronForward size={20} />
-                    </button>
-                    <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
-                      {selectedImageIndex + 1} / {allImages.length}
+                    {product.is_featured && (
+                      <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold">Featured</div>
+                    )}
+                  </div>
+
+                  {allImages.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                      {allImages.map((image, index) => (
+                        <button
+                          key={image.id}
+                          onClick={() => setSelectedImageIndex(index)}
+                          className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition ${selectedImageIndex === index ? "border-blue-500" : "border-gray-200"}`}
+                        >
+                          <img src={image.url} alt={image.alt} className="w-full h-full object-cover" onError={handleImageError} />
+                        </button>
+                      ))}
                     </div>
-                  </>
-                )}
-                <button onClick={toggleFavorite} className="absolute top-4 right-4 p-3 bg-white/90 rounded-full shadow-lg">
-                  {isFavorite ? <FaHeart className="text-red-500" size={20} /> : <FaRegHeart className="text-gray-600" size={20} />}
-                </button>
-                {product.is_featured && (
-                  <div className="absolute top-4 left-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-3 py-1 rounded-full text-sm font-semibold">⭐ Featured</div>
-                )}
+                  )}
+                </div>
+
+                {/* Product Info */}
+                <div className="space-y-4">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">{product.name}</h1>
+
+                    {product.rating > 0 && (
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-0.5">{renderStarRating(parseFloat(product.rating))}</div>
+                        <span className="text-sm text-gray-500">{parseFloat(product.rating).toFixed(1)} ({product.reviews_count || 0})</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <span className="text-3xl font-bold text-gray-900">₹{selectedPrice.unit.toFixed(2)}</span>
+                      <span className="text-gray-500">/card</span>
+                    </div>
+
+                    <p className="text-sm text-gray-600 mb-4">
+                      {product.short_description || product.description?.substring(0, 150)}...
+                    </p>
+
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className={`px-2 py-1 rounded-full ${product.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        {product.is_active ? "In Stock" : "Out of Stock"}
+                      </span>
+                      {product.category && (
+                        <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                          {product.category.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Select Options Button */}
+                  <button
+                    onClick={() => setShowOptionsPanel(true)}
+                    className={`
+                      w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-3
+                      ${optionsCompleted
+                        ? "bg-green-50 border-2 border-green-500 text-green-700"
+                        : "bg-cyan-400 hover:bg-cyan-500 text-black"
+                      }
+                    `}
+                  >
+                    {optionsCompleted ? (
+                      <>
+                        <IoCheckmarkCircle size={22} />
+                        Options Selected - Click to Modify
+                      </>
+                    ) : (
+                      <>
+                        <IoFlash size={20} />
+                        Select Options & Quantity
+                      </>
+                    )}
+                  </button>
+
+                  {/* Selected Options Summary */}
+                  {optionsCompleted && (
+                    <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                      <h4 className="font-semibold text-gray-900 text-sm">Selected Options:</h4>
+                      {Object.entries(selectedAttributes).map(([key, value]) => {
+                        if (key === "quantity" || key === "pricing_tiers") {
+                          return (
+                            <div key={key} className="flex justify-between text-sm">
+                              <span className="text-gray-600">Quantity:</span>
+                              <span className="font-medium">{value} cards</span>
+                            </div>
+                          );
+                        }
+                        const attr = attributes[key];
+                        if (!attr) return null;
+                        const option = attr.find((opt) => String(opt.id || opt.value) === String(value));
+                        return (
+                          <div key={key} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{formatLabel(key)}:</span>
+                            <span className="font-medium">{option?.name || value}</span>
+                          </div>
+                        );
+                      })}
+                      <div className="border-t pt-2 mt-2 flex justify-between">
+                        <span className="font-semibold">Total:</span>
+                        <span className="font-bold text-blue-600">₹{selectedPrice.total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {allImages.length > 1 && (
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {allImages.map((image, index) => (
-                    <button
-                      key={image.id}
-                      onClick={() => setSelectedImageIndex(index)}
-                      className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition ${selectedImageIndex === index ? "border-blue-500" : "border-gray-200"}`}
-                    >
-                      <img src={image.url} alt={image.alt} className="w-full h-full object-cover" onError={handleImageError} />
-                    </button>
-                  ))}
+              {/* Design Upload Section */}
+              <div ref={designUploadRef} className="border-t p-6 lg:p-8">
+                <DesignUpload
+                  onDesignsChange={setCustomDesigns}
+                  frontDesign={customDesigns.front}
+                  backDesign={customDesigns.back}
+                  showBackDesign={true}
+                />
+              </div>
+
+              {/* Flip Card Preview Section */}
+              {(customDesigns.front || customDesigns.back) && (
+                <div className="border-t p-6 lg:p-8 bg-gray-50">
+                  <FlipCardPreview
+                    frontDesign={customDesigns.front}
+                    backDesign={customDesigns.back}
+                    productName={product.name}
+                    orientation={selectedAttributes.orientation || "horizontal"}
+                    onEditFront={scrollToDesignUpload}
+                    onEditBack={scrollToDesignUpload}
+                  />
                 </div>
               )}
             </div>
 
-            <div className="space-y-6">
-              <div>
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <h1 className="text-3xl font-bold text-gray-900 leading-tight">{product.name}</h1>
-                  <span className={`px-3 py-1 text-sm rounded-full font-medium ${product.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                    {product.is_active ? "Available" : "Out of Stock"}
-                  </span>
-                </div>
-
-                {product.rating > 0 && (
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center gap-1">{renderStarRating(parseFloat(product.rating))}</div>
-                    <span className="text-sm text-gray-600">{parseFloat(product.rating).toFixed(1)} ({product.reviews_count || 0} reviews)</span>
-                  </div>
-                )}
-
-                <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-2xl font-bold text-gray-900">₹{selectedPrice.unit.toFixed(2)}</span>
-                  <span className="text-gray-600">each / </span>
-                  <span className="text-gray-600">{selectedPrice.quantity} {selectedPrice.quantity === 1 ? "unit" : "units"}</span>
-                </div>
-
-                <div className="mb-4">
-                  <span className="text-sm font-semibold underline">
-                    Free shipping by {new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN", { day: "numeric", month: "long" })} to 110001
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
-                  <div className="flex items-center gap-2">
-                    <span>SKU:</span>
-                    <code className="bg-gray-100 px-2 py-1 rounded font-mono text-xs">{product.sku}</code>
-                  </div>
-                  {product.category && (
-                    <div className="flex items-center gap-2">
-                      <span>Category:</span>
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">{product.category.name}</span>
-                    </div>
-                  )}
-                  <div className={`flex items-center gap-2 ${parseInt(product.stock_quantity) > 0 ? "text-green-600" : "text-red-600"}`}>
-                    <span>Stock:</span>
-                    <span className="font-medium">{parseInt(product.stock_quantity) > 0 ? `${product.stock_quantity} units` : "Out of stock"}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-                <p className="text-gray-700 leading-relaxed">{product.description || "No description available."}</p>
-              </div>
+            {/* Description & Specs */}
+            <div className="mt-8 bg-white rounded-2xl shadow-sm p-6 lg:p-8">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Product Details</h3>
+              <p className="text-gray-700 leading-relaxed mb-6">{product.description || "No description available."}</p>
 
               {(product.weight || product.dimensions) && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Specifications</h3>
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                    {product.weight && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Weight:</span>
-                        <span className="font-medium">{product.weight} kg</span>
-                      </div>
-                    )}
-                    {product.dimensions && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Dimensions:</span>
-                        <span className="font-medium">{product.dimensions}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {Object.keys(attributes).length > 0 && (
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Customize Your {product.category?.name || "Product"}
-                  </h3>
-
-                  {Object.entries(attributes).map(([key, value]) => renderAttribute(key, value))}
-
-                  <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 border border-blue-100 mt-6">
-                    <h4 className="font-semibold text-gray-900 text-lg mb-3">Order Summary</h4>
-                    <div className="space-y-2">
-                      {Object.entries(selectedAttributes).map(([key, value]) => {
-                        if (key === "quantity" || key === "pricing_tiers") return null;
-                        const attr = attributes[key];
-                        if (!attr) return null;
-                        const option = attr.find((opt) => (opt.id || opt.value) === value);
-                        if (!option) return null;
-                        return (
-                          <div key={key} className="flex justify-between text-sm">
-                            <span className="text-gray-600">{formatLabel(key)}:</span>
-                            <span className="font-medium">{option.name || value}</span>
-                          </div>
-                        );
-                      })}
-                      <div className="border-t pt-3 mt-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xl font-bold">Total</span>
-                          <span className="text-2xl font-bold text-blue-600">₹{selectedPrice.total.toFixed(2)}</span>
-                        </div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          {selectedPrice.quantity} units × ₹{selectedPrice.unit.toFixed(2)} each
-                        </div>
-                      </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {product.weight && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <span className="text-gray-500 text-sm">Weight</span>
+                      <p className="font-semibold">{product.weight} kg</p>
                     </div>
-                  </div>
+                  )}
+                  {product.dimensions && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <span className="text-gray-500 text-sm">Dimensions</span>
+                      <p className="font-semibold">{product.dimensions}</p>
+                    </div>
+                  )}
                 </div>
               )}
+            </div>
+          </div>
 
-              <div className="grid grid-cols-2 gap-4">
+          {/* Right Column - Order Confirmation */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <OrderConfirmationSection
+                confirmDesign={confirmDesign}
+                confirmTerms={confirmTerms}
+                onConfirmDesignChange={setConfirmDesign}
+                onConfirmTermsChange={setConfirmTerms}
+                hasAllDesigns={hasAllDesigns}
+                selectedPrice={selectedPrice}
+                selectedAttributes={selectedAttributes}
+                formatLabel={formatLabel}
+              />
+
+              {/* Action Buttons */}
+              <div className="mt-6 space-y-3">
                 <button
                   onClick={handleAddToCart}
-                  disabled={!product.is_active}
-                  className="bg-white border-2 border-blue-600 text-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50 transition font-semibold disabled:opacity-50"
+                  disabled={!canOrder || isSubmitting || !product.is_active}
+                  className={`
+                    w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-3
+                    ${canOrder && product.is_active
+                      ? "bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    }
+                  `}
                 >
-                  Add to Cart
+                  {isSubmitting ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  ) : (
+                    <>
+                      <IoCartOutline size={22} />
+                      Add to Cart
+                    </>
+                  )}
                 </button>
+
                 <button
-                  onClick={() => {
-                    navigate(`/checkout?buyNow=true&productSlug=${product.slug}`);
-                  }}
-                  disabled={!product.is_active}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-semibold disabled:opacity-50"
+                  onClick={handleBuyNow}
+                  disabled={!canOrder || isSubmitting || !product.is_active}
+                  className={`
+                    w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-3
+                    ${canOrder && product.is_active
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    }
+                  `}
                 >
-                  Buy Now
+                  {isSubmitting ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  ) : (
+                    <>
+                      <IoFlash size={20} />
+                      Buy Now
+                    </>
+                  )}
                 </button>
               </div>
 
-              <p className="text-center text-sm text-gray-600">
+              <p className="text-center text-xs text-gray-500 mt-4">
                 Free shipping on orders over ₹500 | 30-day return policy
               </p>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Related Products */}
+      <RelatedProducts
+        productSlug={slug}
+        category={category}
+        limit={8}
+        title="Related Products"
+        showViewAll={true}
+      />
+
+      {/* Product Options Panel (Sidebar) */}
+      <ProductOptionsPanel
+        isOpen={showOptionsPanel}
+        onClose={() => setShowOptionsPanel(false)}
+        product={product}
+        attributes={attributes}
+        selectedAttributes={selectedAttributes}
+        onAttributeChange={handleAttributeChange}
+        onProceed={handleOptionsProceed}
+        selectedPrice={selectedPrice}
+      />
     </div>
   );
 };

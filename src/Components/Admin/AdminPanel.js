@@ -152,6 +152,11 @@ const AdminPanel = () => {
       type: 'radio',
       fields: ['id', 'name', 'price']
     },
+    product_orientation: {
+      label: 'Product Orientation',
+      type: 'select',
+      fields: ['id', 'name', 'price']
+    },
     shape: {
       label: 'Shape',
       type: 'select',
@@ -167,6 +172,11 @@ const AdminPanel = () => {
       type: 'select',
       fields: ['id', 'name', 'price']
     },
+    finish: {
+      label: 'Finish',
+      type: 'select',
+      fields: ['id', 'name', 'price']
+    },
     color: {
       label: 'Color',
       type: 'color',
@@ -176,6 +186,11 @@ const AdminPanel = () => {
       label: 'Quantity / Pricing Tiers',
       type: 'quantity',
       fields: ['quantity', 'price', 'unitPrice']
+    },
+    custom: {
+      label: 'Custom Attribute',
+      type: 'select',
+      fields: ['id', 'name', 'price']
     }
   };
 
@@ -192,14 +207,38 @@ const AdminPanel = () => {
   const handleAddAttributeOption = () => {
     const requiredFields = attributeTypes[currentAttributeType].fields;
     const errors = [];
+    const isQuantityType = currentAttributeType === 'quantity';
 
     requiredFields.forEach(field => {
-      if (field === 'price' || field === 'unitPrice') {
-        if (newOption[field] === '' || newOption[field] === undefined) {
+      // For quantity type, check numeric fields differently
+      if (isQuantityType) {
+        if (field === 'quantity') {
+          const qty = parseFloat(newOption[field]);
+          if (isNaN(qty) || qty <= 0) {
+            errors.push('Quantity must be greater than 0');
+          }
+        } else if (field === 'price') {
+          const price = parseFloat(newOption[field]);
+          if (isNaN(price) || price < 0) {
+            errors.push('Price is required and must be 0 or greater');
+          }
+        } else if (field === 'unitPrice') {
+          const unitPrice = parseFloat(newOption[field]);
+          if (isNaN(unitPrice) || unitPrice < 0) {
+            errors.push('Unit Price is required and must be 0 or greater');
+          }
+        }
+      } else {
+        // For non-quantity types
+        if (field === 'price') {
+          if (newOption[field] === '' || newOption[field] === undefined) {
+            errors.push(`${field} is required`);
+          }
+        } else if (field === 'value') {
+          // Color value is optional for some attributes
+        } else if (!newOption[field] || String(newOption[field]).trim() === '') {
           errors.push(`${field} is required`);
         }
-      } else if (!newOption[field] || newOption[field].trim() === '') {
-        errors.push(`${field} is required`);
       }
     });
 
@@ -213,8 +252,8 @@ const AdminPanel = () => {
     requiredFields.forEach(field => {
       if (field === 'price' || field === 'quantity' || field === 'unitPrice') {
         optionData[field] = parseFloat(newOption[field]) || 0;
-      } else {
-        optionData[field] = newOption[field].trim();
+      } else if (newOption[field]) {
+        optionData[field] = String(newOption[field]).trim();
       }
     });
 
@@ -1881,15 +1920,22 @@ const AdminPanel = () => {
         </div>
       )}
 
-      {/* Attribute Builder Modal - Enhanced */}
+      {/* Attribute Builder Modal - Modern Card UI */}
       {showAttributeBuilder && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="px-8 py-6 border-b border-gray-200 flex-shrink-0 bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-3xl">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">Attribute Builder</h3>
-                  <p className="text-sm text-gray-500 mt-1">Create dynamic product attributes</p>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-slate-50 to-gray-100 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="relative px-8 py-6 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500">
+              <div className="absolute inset-0 bg-black/10"></div>
+              <div className="relative flex justify-between items-center">
+                <div className="text-white">
+                  <h3 className="text-2xl font-bold flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <IoColorPalette size={24} />
+                    </div>
+                    Attribute Builder
+                  </h3>
+                  <p className="text-white/80 mt-1 text-sm">Create and customize product attributes</p>
                 </div>
                 <button
                   onClick={() => {
@@ -1897,137 +1943,507 @@ const AdminPanel = () => {
                     setAttributeOptions([]);
                     setNewOption({ id: '', name: '', price: 0, value: '', quantity: 0, unitPrice: 0 });
                   }}
-                  className="p-2 rounded-xl hover:bg-white/80 transition-colors"
+                  className="p-2.5 rounded-xl bg-white/20 hover:bg-white/30 transition-colors text-white"
                 >
-                  <IoClose size={24} className="text-gray-500" />
+                  <IoClose size={22} />
                 </button>
               </div>
             </div>
 
-            <div className="overflow-y-auto flex-1 px-8 py-6 space-y-6">
-              {/* Attribute Type Selection */}
+            {/* Content */}
+            <div className="overflow-y-auto flex-1 p-6 space-y-5">
+              {/* Attribute Type Cards */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Attribute Type
+                <label className="block text-sm font-bold text-gray-800 mb-3">
+                  Select Attribute Type
                 </label>
-                <select
-                  value={currentAttributeType}
-                  onChange={(e) => {
-                    setCurrentAttributeType(e.target.value);
-                    setAttributeOptions([]);
-                    setNewOption({ id: '', name: '', price: 0, value: '', quantity: 0, unitPrice: 0 });
-                  }}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-purple-100 focus:border-purple-400 transition-all"
-                >
-                  {Object.entries(attributeTypes).map(([key, config]) => (
-                    <option key={key} value={key}>
-                      {config.label} ({config.type})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-2">
-                  Choose the type of attribute you want to add to your product
-                </p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {Object.entries(attributeTypes).map(([key, config]) => {
+                    const icons = {
+                      delivery_speed: '🚚',
+                      product_orientation: '🔄',
+                      shape: '🔲',
+                      size: '📐',
+                      material: '📄',
+                      finish: '✨',
+                      color: '🎨',
+                      quantity: '📦',
+                      custom: '⚙️'
+                    };
+                    const isSelected = currentAttributeType === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          setCurrentAttributeType(key);
+                          setAttributeOptions([]);
+                          setNewOption({ id: '', name: '', price: 0, value: '', quantity: 0, unitPrice: 0 });
+                        }}
+                        className={`
+                          relative p-4 rounded-2xl border-2 transition-all duration-200 text-center group
+                          ${isSelected
+                            ? 'border-indigo-500 bg-indigo-50 shadow-lg shadow-indigo-500/20 scale-105'
+                            : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md'
+                          }
+                        `}
+                      >
+                        <div className="text-2xl mb-2">{icons[key] || '📋'}</div>
+                        <div className={`text-xs font-semibold ${isSelected ? 'text-indigo-700' : 'text-gray-700'}`}>
+                          {config.label.split(' ')[0]}
+                        </div>
+                        {isSelected && (
+                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center">
+                            <IoCheckmarkCircle className="text-white" size={14} />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Add New Option Form */}
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 border border-purple-200">
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <IoAdd size={18} className="text-purple-600" />
-                  Add New Option
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {attributeTypes[currentAttributeType].fields.map((field) => (
-                    <div key={field}>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5 capitalize">
-                        {field.replace('_', ' ')} {field !== 'value' && '*'}
-                      </label>
-                      <input
-                        type={field === 'price' || field === 'quantity' || field === 'unitPrice' ? 'number' : 'text'}
-                        step={field === 'price' || field === 'unitPrice' ? '0.01' : '1'}
-                        min="0"
-                        value={newOption[field]}
-                        onChange={(e) => setNewOption({ ...newOption, [field]: e.target.value })}
-                        placeholder={field === 'value' ? '#FFFFFF' : field}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all"
-                      />
-                    </div>
-                  ))}
+              {/* Quick Fill Section */}
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200/50">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-bold text-amber-900 flex items-center gap-2 text-sm">
+                    <span className="p-1.5 bg-amber-200 rounded-lg">⚡</span>
+                    Quick Fill
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setAttributeOptions([])}
+                    className="px-3 py-1 text-xs font-medium bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <IoTrash size={12} />
+                    Clear
+                  </button>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  {currentAttributeType === 'quantity' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttributeOptions([
+                          { quantity: 100, price: 200, unitPrice: 2.00 },
+                          { quantity: 200, price: 340, unitPrice: 1.70 },
+                          { quantity: 300, price: 480, unitPrice: 1.60 },
+                          { quantity: 400, price: 600, unitPrice: 1.50 },
+                          { quantity: 500, price: 700, unitPrice: 1.40 },
+                          { quantity: 1000, price: 1300, unitPrice: 1.30 },
+                          { quantity: 1500, price: 1875, unitPrice: 1.25 }
+                        ]);
+                      }}
+                      className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                      Load 7 Pricing Tiers
+                    </button>
+                  )}
+                  {currentAttributeType === 'product_orientation' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttributeOptions([
+                          { id: 'horizontal', name: 'Horizontal', price: 0 },
+                          { id: 'vertical', name: 'Vertical', price: 0 }
+                        ]);
+                      }}
+                      className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                      Load Orientations
+                    </button>
+                  )}
+                  {currentAttributeType === 'delivery_speed' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttributeOptions([
+                          { id: 'standard', name: 'Standard Delivery', price: 0 },
+                          { id: 'express', name: 'Express Delivery', price: 50 },
+                          { id: 'same-day', name: 'Same Day Delivery', price: 100 }
+                        ]);
+                      }}
+                      className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                      Load Delivery Options
+                    </button>
+                  )}
+                  {currentAttributeType === 'shape' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttributeOptions([
+                          { id: 'rectangle', name: 'Rectangle', price: 0 },
+                          { id: 'square', name: 'Square', price: 10 },
+                          { id: 'rounded', name: 'Rounded Corners', price: 15 },
+                          { id: 'oval', name: 'Oval', price: 20 }
+                        ]);
+                      }}
+                      className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                      Load Shapes
+                    </button>
+                  )}
+                  {currentAttributeType === 'size' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttributeOptions([
+                          { id: 'small', name: '5.08cm × 8.89cm (Standard)', price: 0 },
+                          { id: 'medium', name: '7.62cm × 10.16cm (Medium)', price: 20 },
+                          { id: 'large', name: '10cm × 15cm (Large)', price: 40 }
+                        ]);
+                      }}
+                      className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                      Load Sizes
+                    </button>
+                  )}
+                  {currentAttributeType === 'material' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttributeOptions([
+                          { id: 'white-paper', name: 'White Paper', price: 0 },
+                          { id: 'premium-paper', name: 'Premium Paper', price: 20 },
+                          { id: 'plastic', name: 'Plastic', price: 40 },
+                          { id: 'silver-foil', name: 'Silver Foil', price: 80 },
+                          { id: 'gold-foil', name: 'Gold Foil', price: 100 }
+                        ]);
+                      }}
+                      className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                      Load Materials
+                    </button>
+                  )}
+                  {currentAttributeType === 'finish' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttributeOptions([
+                          { id: 'matte', name: 'Matte Finish', price: 0 },
+                          { id: 'glossy', name: 'Glossy Finish', price: 15 },
+                          { id: 'satin', name: 'Satin Finish', price: 20 },
+                          { id: 'uv-coating', name: 'UV Coating', price: 30 }
+                        ]);
+                      }}
+                      className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                      Load Finishes
+                    </button>
+                  )}
+                  {currentAttributeType === 'color' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttributeOptions([
+                          { id: 'black', name: 'Black', value: '#000000', price: 0 },
+                          { id: 'white', name: 'White', value: '#FFFFFF', price: 0 },
+                          { id: 'red', name: 'Red', value: '#EF4444', price: 0 },
+                          { id: 'blue', name: 'Blue', value: '#3B82F6', price: 0 },
+                          { id: 'green', name: 'Green', value: '#22C55E', price: 0 }
+                        ]);
+                      }}
+                      className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                      Load Colors
+                    </button>
+                  )}
+                  {currentAttributeType === 'custom' && (
+                    <span className="text-sm text-amber-700 py-2">Enter custom options manually below</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Add Option Form */}
+              <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <div className="p-1.5 bg-indigo-100 rounded-lg">
+                    <IoAdd size={16} className="text-indigo-600" />
+                  </div>
+                  {currentAttributeType === 'quantity' ? 'Add Pricing Tier' : 'Add Option'}
+                </h4>
+
+                {currentAttributeType === 'quantity' ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide">
+                          Quantity *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={newOption.quantity}
+                            onChange={(e) => {
+                              const qty = parseFloat(e.target.value) || 0;
+                              const price = parseFloat(newOption.price) || 0;
+                              setNewOption({
+                                ...newOption,
+                                quantity: e.target.value,
+                                unitPrice: qty > 0 ? (price / qty).toFixed(2) : 0
+                              });
+                            }}
+                            placeholder="100"
+                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-lg font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">units</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide">
+                          Total Price *
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newOption.price}
+                            onChange={(e) => {
+                              const price = parseFloat(e.target.value) || 0;
+                              const qty = parseFloat(newOption.quantity) || 0;
+                              setNewOption({
+                                ...newOption,
+                                price: e.target.value,
+                                unitPrice: qty > 0 ? (price / qty).toFixed(2) : 0
+                              });
+                            }}
+                            placeholder="200"
+                            className="w-full border-2 border-gray-200 rounded-xl pl-8 pr-4 py-3 text-lg font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide">
+                          Unit Price <span className="text-gray-400 font-normal">(auto)</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-green-600 font-semibold">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newOption.unitPrice}
+                            onChange={(e) => setNewOption({ ...newOption, unitPrice: e.target.value })}
+                            placeholder="2.00"
+                            className="w-full border-2 border-green-200 bg-green-50 rounded-xl pl-8 pr-4 py-3 text-lg font-semibold text-green-700 focus:outline-none focus:ring-4 focus:ring-green-100 focus:border-green-400 transition-all"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500 text-sm">/unit</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {attributeTypes[currentAttributeType].fields.map((field) => (
+                      <div key={field} className="space-y-1.5">
+                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide">
+                          {field === 'id' ? 'ID' : field === 'value' ? 'Color Hex' : field} {field !== 'value' && '*'}
+                        </label>
+                        {field === 'value' ? (
+                          <div className="flex gap-2">
+                            <input
+                              type="color"
+                              value={newOption[field] || '#000000'}
+                              onChange={(e) => setNewOption({ ...newOption, [field]: e.target.value })}
+                              className="w-14 h-12 rounded-lg border-2 border-gray-200 cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={newOption[field]}
+                              onChange={(e) => setNewOption({ ...newOption, [field]: e.target.value })}
+                              placeholder="#000000"
+                              className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-3 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all"
+                            />
+                          </div>
+                        ) : (
+                          <input
+                            type={field === 'price' ? 'number' : 'text'}
+                            step={field === 'price' ? '0.01' : undefined}
+                            min={field === 'price' ? '0' : undefined}
+                            value={newOption[field]}
+                            onChange={(e) => setNewOption({ ...newOption, [field]: e.target.value })}
+                            placeholder={
+                              field === 'id' ? 'e.g., horizontal' :
+                              field === 'name' ? 'e.g., Horizontal' :
+                              field === 'price' ? '0.00' : ''
+                            }
+                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition-all"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={handleAddAttributeOption}
-                  className="mt-4 w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-3 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 font-medium"
+                  className="mt-5 w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-3.5 rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 transition-all flex items-center justify-center gap-2 font-semibold"
                 >
                   <IoAdd size={20} />
-                  Add Option to List
+                  {currentAttributeType === 'quantity' ? 'Add Pricing Tier' : 'Add Option'}
                 </button>
               </div>
 
               {/* Options List */}
               {attributeOptions.length > 0 && (
-                <div>
-                  <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                    <IoCheckmarkCircle size={18} className="text-green-600" />
-                    Configured Options ({attributeOptions.length})
-                  </h4>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {attributeOptions.map((option, index) => (
-                      <div
-                        key={index}
-                        className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex-1 min-w-0 text-sm space-y-1">
-                          {Object.entries(option).map(([key, val]) => (
-                            <div key={key} className="flex gap-3">
-                              <span className="font-bold text-gray-700 capitalize min-w-[80px]">
-                                {key}:
-                              </span>
-                              <span className="text-gray-900 font-medium">
-                                {typeof val === 'object' && val !== null
-                                  ? JSON.stringify(val)
-                                  : (key === 'price' || key === 'unitPrice')
-                                    ? `₹${parseFloat(val || 0).toFixed(2)}`
-                                    : String(val)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveOption(index)}
-                          className="text-red-600 hover:bg-red-50 p-2.5 rounded-lg transition-colors ml-3"
-                        >
-                          <IoTrash size={18} />
-                        </button>
+                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                      <div className="p-1.5 bg-green-100 rounded-lg">
+                        <IoCheckmarkCircle size={16} className="text-green-600" />
                       </div>
-                    ))}
+                      {currentAttributeType === 'quantity' ? 'Pricing Tiers' : 'Options'}
+                      <span className="ml-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
+                        {attributeOptions.length}
+                      </span>
+                    </h4>
                   </div>
+
+                  {currentAttributeType === 'quantity' ? (
+                    <div className="overflow-hidden rounded-xl border border-gray-200">
+                      <table className="w-full">
+                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wide">Qty</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wide">Total</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wide">Per Unit</th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wide">Remove</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {attributeOptions.map((option, index) => (
+                            <tr key={index} className="hover:bg-indigo-50/50 transition-colors">
+                              <td className="px-4 py-3">
+                                <span className="font-bold text-gray-900">{option.quantity}</span>
+                                <span className="text-gray-400 text-sm ml-1">units</span>
+                              </td>
+                              <td className="px-4 py-3 font-semibold text-gray-700">₹{parseFloat(option.price || 0).toFixed(2)}</td>
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center px-2.5 py-1 bg-green-100 text-green-700 font-bold text-sm rounded-lg">
+                                  ₹{parseFloat(option.unitPrice || 0).toFixed(2)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveOption(index)}
+                                  className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                                >
+                                  <IoTrash size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : currentAttributeType === 'color' ? (
+                    <div className="flex flex-wrap gap-3">
+                      {attributeOptions.map((option, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-200 hover:shadow-md transition-shadow group"
+                        >
+                          <div
+                            className="w-10 h-10 rounded-lg border-2 border-white shadow-md"
+                            style={{ backgroundColor: option.value || '#000000' }}
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900">{option.name}</div>
+                            <div className="text-xs text-gray-500 font-mono">{option.value}</div>
+                          </div>
+                          {option.price > 0 && (
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded">
+                              +₹{option.price}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveOption(index)}
+                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <IoClose size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
+                      {attributeOptions.map((option, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-white rounded-xl px-4 py-3 border border-gray-200 hover:shadow-md hover:border-indigo-200 transition-all group"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-gray-900 truncate">{option.name}</div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-gray-400 font-mono">{option.id}</span>
+                              {option.price > 0 && (
+                                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded">
+                                  +₹{option.price}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveOption(index)}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <IoTrash size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Footer Actions */}
-            <div className="px-8 py-5 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-3xl">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAttributeBuilder(false);
-                  setAttributeOptions([]);
-                  setNewOption({ id: '', name: '', price: 0, value: '', quantity: 0, unitPrice: 0 });
-                }}
-                className="px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveAttribute}
-                className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all flex items-center gap-2 font-medium"
-              >
-                <IoSave size={18} />
-                Save Attribute
-              </button>
+            {/* Footer */}
+            <div className="px-6 py-4 bg-white border-t border-gray-200 flex items-center justify-between">
+              <div className="text-sm text-gray-500">
+                {attributeOptions.length > 0 ? (
+                  <span className="flex items-center gap-2">
+                    <IoCheckmarkCircle className="text-green-500" size={16} />
+                    {attributeOptions.length} option{attributeOptions.length > 1 ? 's' : ''} configured
+                  </span>
+                ) : (
+                  <span>Add at least one option to save</span>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAttributeBuilder(false);
+                    setAttributeOptions([]);
+                    setNewOption({ id: '', name: '', price: 0, value: '', quantity: 0, unitPrice: 0 });
+                  }}
+                  className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAttribute}
+                  disabled={attributeOptions.length === 0}
+                  className={`px-6 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all ${
+                    attributeOptions.length > 0
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-500/30'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <IoSave size={18} />
+                  Save Attribute
+                </button>
+              </div>
             </div>
           </div>
         </div>

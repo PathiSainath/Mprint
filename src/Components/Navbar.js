@@ -10,6 +10,7 @@ import {
   FaQuestionCircle,
   FaFolderOpen,
   FaBox,
+  FaBoxes,
 } from "react-icons/fa";
 import vista from "../Assets/vista.png";
 import api from "../api/api";
@@ -22,19 +23,20 @@ const Navbar = () => {
   const [user, setUser] = useState(null);
   const [cartCount, setCartCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   const menuItems = [
     { label: "View All", path: "/" },
+    { label: "Business Cards", path: "/cards" },
     { label: "Bookmarks", path: "/bookmarks" },
     { label: "Brochures", path: "/brochures" },
-    { label: "Cards", path: "/cards" },
     { label: "Certificates", path: "/certificates" },
     { label: "Greeting Cards", path: "/greetingcards" },
     { label: "Personalised Cards", path: "/personalised" },
     { label: "Photo Frames", path: "/frames" },
     { label: "Photo Prints", path: "/Prints" },
     { label: "Posters", path: "/posters" },
-  
+    { label: "Bulk Orders", path: "/bulk-orders" },
   ];
 
   useEffect(() => {
@@ -87,9 +89,9 @@ const Navbar = () => {
   };
 
   return (
-    <div className="w-full bg-white border-b shadow-sm">
+    <div className="w-full bg-white border-b shadow-sm relative z-30">
       {/* ===== TOP NAVBAR ===== */}
-      <div className="flex items-center justify-between px-4 lg:px-12 py-4 flex-wrap gap-4">
+      <div className="flex items-center justify-between px-4 lg:px-12 py-4 flex-wrap gap-4 relative z-20">
 
         {/* Logo */}
         <Link to="/">
@@ -159,35 +161,61 @@ const Navbar = () => {
               <span className="font-medium">Sign in</span>
             </Link>
           ) : (
-            <div className="relative group">
-              <div className="flex items-center gap-2 cursor-pointer hover:text-blue-700">
+            <div className="relative">
+              <button
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="flex items-center gap-2 cursor-pointer hover:text-blue-700 transition"
+              >
                 <FaUser className="text-lg" />
                 <span className="font-medium">
                   {user.name || "User"}
                 </span>
-              </div>
+              </button>
 
-              <div className="absolute right-0 bg-white shadow-md rounded-lg mt-2 w-48 opacity-0 group-hover:opacity-100 transition z-10">
-                <Link
-                  to="/account"
-                  className="block px-4 py-2 hover:bg-gray-100"
-                >
-                  My Account
-                </Link>
-                <Link
-                  to="/purchase-history"
-                  className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100"
-                >
-                  <FaBox className="text-sm" />
-                  <span>Purchase History</span>
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
-                >
-                  Logout
-                </button>
-              </div>
+              {/* User Dropdown - Click based */}
+              {userDropdownOpen && (
+                <>
+                  {/* Backdrop to close dropdown */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setUserDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 bg-white shadow-xl rounded-xl border border-gray-100 w-52 z-50 overflow-hidden">
+                    <div className="px-4 py-3 bg-gray-50 border-b">
+                      <p className="text-sm font-semibold text-gray-900">{user.name || "User"}</p>
+                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    </div>
+                    <Link
+                      to="/account"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition"
+                    >
+                      <FaUser className="text-gray-400" size={14} />
+                      <span className="text-sm text-gray-700">My Account</span>
+                    </Link>
+                    <Link
+                      to="/purchase-history"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition"
+                    >
+                      <FaBox className="text-gray-400" size={14} />
+                      <span className="text-sm text-gray-700">Purchase History</span>
+                    </Link>
+                    <div className="border-t">
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition text-red-600"
+                      >
+                        <FaTimes className="text-red-400" size={14} />
+                        <span className="text-sm">Logout</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -294,11 +322,13 @@ const Navbar = () => {
                   key={i}
                   to={item.path}
                   onClick={() => setMenuOpen(false)}
-                  className={`hover:text-red-600 ${item.label === "Custom Winter Wear"
-                      ? "text-red-600 font-semibold"
+                  className={`hover:text-red-600 flex items-center gap-2 ${
+                    item.highlight
+                      ? "text-orange-600 font-bold"
                       : ""
-                    }`}
+                  }`}
                 >
+                  {item.highlight && <FaBoxes className="text-orange-500" size={14} />}
                   {item.label}
                 </Link>
               ))}
@@ -308,17 +338,19 @@ const Navbar = () => {
       )}
 
       {/* ===== DESKTOP CATEGORY ROW ===== */}
-      <div className="hidden md:block w-full border-t">
+      <div className="hidden md:block w-full border-t relative z-10">
         <div className="max-w-[1600px] mx-auto flex justify-between items-center px-8 py-3 text-gray-800 text-sm font-medium">
           {menuItems.map((item, i) => (
             <Link
               key={i}
               to={item.path}
-              className={`hover:text-red-600 transition px-2 ${item.label === "Custom Winter Wear"
-                  ? "text-red-600 font-semibold"
-                  : ""
-                }`}
+              className={`hover:text-red-600 transition px-2 py-1 rounded ${
+                item.highlight
+                  ? "text-orange-600 font-bold flex items-center gap-1 bg-orange-50 hover:bg-orange-100"
+                  : "hover:bg-gray-50"
+              }`}
             >
+              {item.highlight && <FaBoxes className="text-orange-500" size={14} />}
               {item.label}
             </Link>
           ))}
